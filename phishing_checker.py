@@ -1,6 +1,7 @@
 import requests
 from urllib.parse import urlparse
 from datetime import datetime
+from difflib import SequenceMatcher
 #import re
 
 
@@ -64,6 +65,108 @@ def expand_url(short_url):
     except requests.exceptions.RequestException as e:
         print(f"[--] Error: {e}")
         return history
+
+
+def check_domain_reputation(domain):
+    """Now ...checking  if domain looks suspicious"""
+    domain_lower = domain.lower()
+
+    # List of known URL shorteners (red flag)
+    KNOWN_URL_SHORTENERS = {
+        "bit.ly",
+        "tinyurl.com",
+        "t.co",
+        "goo.gl",
+        "ow.ly",
+        "is.gd",
+        "v.gd",
+        "buff.ly",
+        "adf.ly",
+        "cutt.ly",
+        "rebrand.ly",
+        "shorturl.at",
+        "t.ly",
+        "tiny.cc",
+        "lnkd.in",
+        "rb.gy",
+        "bl.ink",
+        "soo.gd",
+        "s2r.co",
+        "shorte.st",
+        "cli.re",
+        "fur.ly",
+        "mcaf.ee",
+        "su.pr",
+        "ity.im",
+        "qr.ae",
+        "trib.al",
+        "amzn.to",
+        "youtu.be",
+        "ift.tt",
+        "geni.us",
+        "bit.do",
+        "short.io",
+        "cutt.us",
+        "u.to",
+        "x.co",
+        "po.st",
+        "smarturl.it",
+        "linktr.ee",
+    }
+    for shortener in KNOWN_URL_SHORTENERS:
+        if shortener in domain_lower:
+            return 'WARNING', f"Uses URL shortener: {shortener}"
+
+    # Check for typosquatting like instead of Google it is Go0gle and the others
+    KNOWN_BRANDS = {
+        "google", "gmail", "youtube", "microsoft", "windows", "office", "outlook", "apple", "icloud",
+        "facebook", "instagram", "whatsapp", "messenger", "x", "twitter", "linkedin", "tiktok", "snapchat", "discord", "reddit",
+        "amazon", "ebay", "walmart", "etsy", "aliexpress",
+        "paypal", "stripe", "wise", "venmo", "cashapp", "zelle", "coinbase", "binance",
+        "wellsfargo", "chase", "bankofamerica", "citibank", "capitalone", "hsbc", "barclays",
+        "dropbox", "onedrive", "box", "zoom", "slack", "notion",
+        "netflix", "spotify", "disney", "hulu",
+        "fedex", "ups", "dhl", "usps",
+        "norton", "mcafee",
+        "github", "gitlab",
+    }
+    parsed = urlparse(domain if '://' in domain else f'http://{domain}')
+    domain_name = parsed.netloc.lower()
+
+    for brand in KNOWN_BRANDS:
+        score = SequenceMatcher(None, domain_name, brand).ratio() * 100
+
+        if score >= 85 and domain_name != brand:
+            return (
+                "DANGER",
+                f"Possible typosquatting of '{brand}' "
+                f"(similarity {int(score)}%)."
+            )
+
+    # Check for weird Top Level Domains
+    parsed = urlparse(domain if '://' in domain else f'http://{domain}')
+    tld = parsed.netloc.split('.')[-1]
+    RISKY_TLDS = {
+        "tk", "ml", "ga", "cf", "gq",
+        "xyz", "top", "club", "online", "site", "website", "space", "click", "stream", "work", "live", "buzz",
+        "win", "bid", "loan", "download", "party", "review", "trade", "science", "account", "support", "cam",
+        "country", "men", "date", "racing", "cricket",
+        "zip", "mov", "rest", "quest", "kim", "fit", "help", "monster", "link", "host", "pro", "info"}
+
+    if tld in RISKY_TLDS:
+        return 'CAUTION', f"Unusual TLD: .{tld} (this is usually used  in phishing)"
+
+    return 'CLEAN', "No immediate red flags"
+
+# Testing the domain reputation functiom
+
+
+url = input("Enter a URL or domain: ").strip()
+status, message = check_domain_reputation(url)
+
+print("\n=== Result ===")
+print(f"Status : {status}")
+print(f"Reason : {message}")
 
 # Testing this funtion to see if it does what it needs to do
 
