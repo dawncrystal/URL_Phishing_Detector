@@ -2,7 +2,8 @@ import requests
 from urllib.parse import urlparse
 from datetime import datetime
 from difflib import SequenceMatcher
-#import re
+import re
+import ipaddress
 
 
 # This function is to expand the short urls
@@ -159,6 +160,75 @@ def check_domain_reputation(domain):
     return 'CLEAN', "No immediate red flags"
 
 # Testing the domain reputation functiom
+
+
+def extract_indicators(url):
+    """Find suspicious patterns in the URL."""
+
+    indicators = []
+
+    # Parse the URL
+    if "://" not in url:
+        url = "http://" + url
+
+    parsed = urlparse(url)
+
+    # Get the hostname only (lowercase)
+    domain = parsed.netloc.lower()
+
+    # Remove port number if present
+    domain = domain.split(":")[0]
+
+    # Check if the hostname is an IP address
+    try:
+        ipaddress.ip_address(domain)
+        indicators.append("Uses an IP address instead of a domain name")
+    except ValueError:
+        # Not an IP address
+        pass
+
+    # Check for excessive subdomains
+    subdomains = domain.split(".")
+    if len(subdomains) > 4:
+        indicators.append(
+            f"Too many subdomains ({len(subdomains)} levels)"
+        )
+
+    # Check for @ symbol
+    if "@" in url:
+        indicators.append(
+            "Contains '@' symbol .. this can hide the real destination"
+        )
+
+    # Check for many hyphens
+    if domain.count("-") >= 3:
+        indicators.append(
+            "Contains many hyphens ..this is usually common in phishing domains"
+        )
+
+    # Check for very long domain names
+    if len(domain) > 40:
+        indicators.append(
+            f"Very long domain name ({len(domain)} characters)"
+        )
+
+    # Check for unusual characters
+    if re.search(r"[^a-z0-9.-]", domain):
+        indicators.append(
+            "Contains unusual characters in the domain"
+        )
+
+    # Check for punycode this is for possible IDN homograph attacks
+    if "xn--" in domain:
+        indicators.append(
+            "This uses punycode which could be a possible homograph attack"
+        )
+
+    return indicators
+
+
+
+
 
 
 url = input("Enter a URL or domain: ").strip()
